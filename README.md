@@ -7,6 +7,38 @@ A full-stack personal finance app that runs entirely on your own machine: no clo
 - **Budgets**: a monthly budget per category; categories without a budget are never flagged
 - **Dashboard**: income, expenses and net for any month, spending by category, budget progress (over/under), and a 6-month spending trend
 
+## Screenshots
+
+### Dashboard
+
+Income, expenses and net for the selected month, spending by category, budget status flagged over or under, and a 6-month trend.
+
+![Dashboard in dark mode](docs/screenshots/dashboard-dark.png)
+
+The same page in light mode. The theme follows your operating system.
+
+![Dashboard in light mode](docs/screenshots/dashboard-light.png)
+
+### Transactions
+
+Filter by account, category, type and date range, and sort by any column.
+
+![Transactions list](docs/screenshots/transactions.png)
+
+| Add or edit a transaction | Confirm before deleting |
+| --- | --- |
+| ![Add transaction dialog](docs/screenshots/add-transaction.png) | ![Delete confirmation dialog](docs/screenshots/delete-confirmation.png) |
+
+### Accounts and budgets
+
+| Accounts | Budgets |
+| --- | --- |
+| ![Accounts page](docs/screenshots/accounts.png) | ![Budgets page](docs/screenshots/budgets.png) |
+
+### Mobile
+
+<img src="docs/screenshots/dashboard-mobile.png" alt="Dashboard on a phone" width="320">
+
 ## Tech stack
 
 | Layer | Choice |
