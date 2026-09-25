@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { accountsApi, categoriesApi, transactionsApi } from '../api/index.js';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import Status from '../components/Status.jsx';
 import TransactionForm from '../components/TransactionForm.jsx';
@@ -19,7 +20,7 @@ export default function Transactions() {
   const [filters, setFilters] = useState(NO_FILTERS);
   const [sort, setSort] = useState({ by: 'date', order: 'desc' });
   const [editing, setEditing] = useState(null);
-  const [actionError, setActionError] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
   const { data: transactions, error, loading, reload } = useApi(
     () => transactionsApi.list({ ...filters, sort: sort.by, order: sort.order }),
@@ -38,15 +39,10 @@ export default function Transactions() {
     );
   }
 
-  async function remove(t) {
-    if (!window.confirm(`Delete this ${formatMoney(t.amount)} ${t.categoryName} transaction?`)) return;
-    try {
-      await transactionsApi.remove(t.id);
-      setActionError(null);
-      reload();
-    } catch (err) {
-      setActionError(err.message);
-    }
+  async function confirmDelete() {
+    await transactionsApi.remove(deleting.id);
+    setDeleting(null);
+    reload();
   }
 
   const net = transactions?.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0) ?? 0;
@@ -97,7 +93,6 @@ export default function Transactions() {
       </div>
 
       <Status loading={loading && !transactions} error={error} onRetry={reload} />
-      {actionError && <div className="notice notice-error" role="alert">{actionError}</div>}
 
       {transactions && (
         <div className="card">
@@ -136,7 +131,7 @@ export default function Transactions() {
                       <td className="note">{t.note}</td>
                       <td className="actions">
                         <button className="btn-ghost" onClick={() => setEditing(t)}>Edit</button>
-                        <button className="btn-ghost btn-danger" onClick={() => remove(t)}>Delete</button>
+                        <button className="btn-ghost btn-danger" onClick={() => setDeleting(t)}>Delete</button>
                       </td>
                     </tr>
                   ))}
@@ -148,6 +143,15 @@ export default function Transactions() {
             {transactions.length} transaction{transactions.length === 1 ? '' : 's'} · Net {formatMoney(net)}
           </p>
         </div>
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          title="Delete transaction"
+          message={`Delete this ${formatMoney(deleting.amount)} ${deleting.categoryName} transaction from ${formatDate(deleting.date)}? This cannot be undone.`}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleting(null)}
+        />
       )}
 
       {editing && accounts && categories && (

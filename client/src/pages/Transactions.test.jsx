@@ -108,27 +108,46 @@ describe('Transactions page', () => {
     expect(await screen.findByText('No transactions match these filters.')).toBeInTheDocument();
   });
 
-  it('deletes after confirmation and reloads', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  const dialog = () => document.querySelector('dialog');
+  const clickRowDelete = (note) =>
+    userEvent.click(within(screen.getByText(note).closest('tr')).getByRole('button', { name: 'Delete' }));
+
+  it('asks for confirmation, then deletes and reloads', async () => {
     await renderPage();
-    await userEvent.click(within(screen.getByText('Market').closest('tr')).getByRole('button', { name: 'Delete' }));
+    await clickRowDelete('Market');
+    expect(within(dialog()).getByRole('heading', { name: 'Delete transaction' })).toBeInTheDocument();
+    expect(within(dialog()).getByText(/\$82\.69 Food transaction from Sep 25, 2026/)).toBeInTheDocument();
+    expect(transactionsApi.remove).not.toHaveBeenCalled();
+
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(transactionsApi.remove).toHaveBeenCalledWith(11));
     await waitFor(() => expect(transactionsApi.list.mock.calls.length).toBeGreaterThan(1));
+    await waitFor(() => expect(dialog()).toBeNull());
   });
 
-  it('does not delete when the confirmation is declined', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('never relies on the browser confirm() pop-up', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     await renderPage();
-    await userEvent.click(within(screen.getByText('Market').closest('tr')).getByRole('button', { name: 'Delete' }));
+    await clickRowDelete('Market');
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(transactionsApi.remove).toHaveBeenCalledWith(11));
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('does not delete when the confirmation is cancelled', async () => {
+    await renderPage();
+    await clickRowDelete('Market');
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Cancel' }));
+    expect(dialog()).toBeNull();
     expect(transactionsApi.remove).not.toHaveBeenCalled();
   });
 
-  it('shows a failed delete as an error', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('shows a failed delete inside the dialog and keeps it open', async () => {
     transactionsApi.remove.mockRejectedValue(new Error('Transaction not found'));
     await renderPage();
-    await userEvent.click(within(screen.getByText('Market').closest('tr')).getByRole('button', { name: 'Delete' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Transaction not found');
+    await clickRowDelete('Market');
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Delete' }));
+    expect(await within(dialog()).findByRole('alert')).toHaveTextContent('Transaction not found');
   });
 
   it('opens an add dialog and a prefilled edit dialog', async () => {
