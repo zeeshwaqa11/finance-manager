@@ -29,14 +29,14 @@ describe('Accounts page', () => {
     const row = rowFor('Main Checking');
     expect(within(row).getByText('Bank')).toBeInTheDocument();
     expect(within(row).getByText('15')).toBeInTheDocument();
-    expect(within(row).getByText('$8,777.50')).toBeInTheDocument();
+    expect(within(row).getByText('Rs 8,777.50')).toBeInTheDocument();
   });
 
   it('marks negative balances and sums a net worth total', async () => {
     render(<Accounts />);
     await screen.findByText('Visa Card');
-    expect(within(rowFor('Visa Card')).getByText('-$1,623.35')).toHaveClass('negative');
-    expect(within(rowFor('Net worth')).getByText('$7,164.15')).toBeInTheDocument();
+    expect(within(rowFor('Visa Card')).getByText('-Rs 1,623.35')).toHaveClass('negative');
+    expect(within(rowFor('Net worth')).getByText('Rs 7,164.15')).toBeInTheDocument();
   });
 
   it('shows an empty state with no accounts', async () => {

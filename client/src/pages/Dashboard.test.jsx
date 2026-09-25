@@ -56,15 +56,22 @@ describe('Dashboard', () => {
 
   it('shows income, expenses and a signed net for the month', async () => {
     render(<Dashboard />);
-    expect(await screen.findByText('$3,450.00')).toBeInTheDocument();
-    expect(screen.getByText('$2,273.25')).toBeInTheDocument();
-    expect(screen.getByText('+$1,176.75')).toBeInTheDocument();
+    expect(await screen.findByText('Rs 3,450.00')).toBeInTheDocument();
+    expect(screen.getByText('Rs 2,273.25')).toBeInTheDocument();
+    expect(screen.getByText('+Rs 1,176.75')).toBeInTheDocument();
+  });
+
+  it('shows every amount in rupees with no dollar signs', async () => {
+    render(<Dashboard />);
+    await screen.findByText('Rs 3,450.00');
+    expect(document.body.textContent).not.toContain('$');
+    expect(document.body.textContent).toContain('Rs');
   });
 
   it('shows a negative net without a plus sign', async () => {
     reportsApi.summary.mockResolvedValue({ ...summary, totalIncome: 100, totalExpenses: 300, net: -200 });
     render(<Dashboard />);
-    const net = await screen.findByText('-$200.00');
+    const net = await screen.findByText('-Rs 200.00');
     expect(net).toHaveClass('negative');
   });
 
@@ -73,7 +80,7 @@ describe('Dashboard', () => {
     render(<Dashboard />);
     await screen.findByText('No expenses in', { exact: false });
     const stats = [...document.querySelectorAll('.stat-value')];
-    expect(stats.map((el) => el.textContent)).toEqual(['$0.00', '$0.00', '$0.00']);
+    expect(stats.map((el) => el.textContent.replace(/\u00a0/g, ' '))).toEqual(['Rs 0.00', 'Rs 0.00', 'Rs 0.00']);
     expect(stats[2]).not.toHaveClass('negative');
     expect(stats[2]).not.toHaveClass('income');
   });
@@ -82,16 +89,16 @@ describe('Dashboard', () => {
     render(<Dashboard />);
     const rent = (await screen.findAllByText('Rent')).find((el) => el.classList.contains('name'));
     const row = rent.closest('li');
-    expect(within(row).getByText('$1,200.00')).toBeInTheDocument();
+    expect(within(row).getByText('Rs 1,200.00')).toBeInTheDocument();
     expect(within(row).getByText('53%')).toBeInTheDocument();
     expect(screen.getByTestId('doughnut')).toHaveTextContent('Rent,Food');
   });
 
   it('flags over-budget and under-budget categories with words as well as colour', async () => {
     render(<Dashboard />);
-    expect(await screen.findByText(/Over budget by \$124\.87 \(131\.2%\)/)).toHaveClass('over');
-    expect(screen.getByText(/Under budget, \$20\.00 left \(83\.3%\)/)).toHaveClass('under');
-    expect(screen.getByText('$524.87 of $400.00')).toBeInTheDocument();
+    expect(await screen.findByText(/Over budget by \Rs 124\.87 \(131\.2%\)/)).toHaveClass('over');
+    expect(screen.getByText(/Under budget, \Rs 20\.00 left \(83\.3%\)/)).toHaveClass('under');
+    expect(screen.getByText('Rs 524.87 of Rs 400.00')).toBeInTheDocument();
   });
 
   it('caps the progress bar at 100% when over budget', async () => {
@@ -127,7 +134,7 @@ describe('Dashboard', () => {
 
   it('reloads the reports when the month changes', async () => {
     render(<Dashboard />);
-    await screen.findByText('$3,450.00');
+    await screen.findByText('Rs 3,450.00');
     await userEvent.click(screen.getByRole('button', { name: 'Previous month' }));
     const previous = addMonths(month, -1);
     expect(reportsApi.summary).toHaveBeenLastCalledWith(previous);
@@ -140,6 +147,6 @@ describe('Dashboard', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Cannot reach the server');
     reportsApi.summary.mockResolvedValue(summary);
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText('$3,450.00')).toBeInTheDocument();
+    expect(await screen.findByText('Rs 3,450.00')).toBeInTheDocument();
   });
 });

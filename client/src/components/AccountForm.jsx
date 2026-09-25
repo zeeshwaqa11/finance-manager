@@ -46,7 +46,7 @@ export default function AccountForm({ account, onSaved, onCancel }) {
       </label>
 
       <label className="field">
-        Opening balance ($)
+        Opening balance (Rs)
         <input type="number" step="0.01" value={form.openingBalance} onChange={set('openingBalance')} required />
         <span className="muted">The balance before any transactions. Use a negative number for existing debt.</span>
       </label>

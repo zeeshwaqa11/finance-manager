@@ -67,7 +67,7 @@ export default function TransactionForm({ transaction, accounts, categories, onS
 
       <div className="field-row">
         <label className="field">
-          Amount ($)
+          Amount (Rs)
           <input type="number" step="0.01" min="0.01" value={form.amount} onChange={set('amount')} required autoFocus />
         </label>
         <label className="field">

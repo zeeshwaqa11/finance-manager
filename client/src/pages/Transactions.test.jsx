@@ -43,20 +43,20 @@ describe('Transactions page', () => {
     await renderPage();
     const expense = screen.getByText('Market').closest('tr');
     expect(within(expense).getByText('Sep 25, 2026')).toBeInTheDocument();
-    expect(within(expense).getByText('−$82.69')).toHaveClass('expense');
+    expect(within(expense).getByText('−Rs 82.69')).toHaveClass('expense');
     const income = screen.getByText('Salary', { selector: 'td' }).closest('tr');
-    expect(within(income).getByText('+$3,200.00')).toHaveClass('income');
+    expect(within(income).getByText('+Rs 3,200.00')).toHaveClass('income');
   });
 
   it('summarises the count and net of what is shown', async () => {
     await renderPage();
-    expect(screen.getByText(/2 transactions · Net \$3,117\.31/)).toBeInTheDocument();
+    expect(screen.getByText(/2 transactions · Net \Rs 3,117\.31/)).toBeInTheDocument();
   });
 
   it('uses the singular for one transaction', async () => {
     transactionsApi.list.mockResolvedValue([transactions[0]]);
     await renderPage();
-    expect(screen.getByText(/1 transaction · Net -\$82\.69/)).toBeInTheDocument();
+    expect(screen.getByText(/1 transaction · Net -\Rs 82\.69/)).toBeInTheDocument();
   });
 
   it('requests newest first by default', async () => {
@@ -116,7 +116,7 @@ describe('Transactions page', () => {
     await renderPage();
     await clickRowDelete('Market');
     expect(within(dialog()).getByRole('heading', { name: 'Delete transaction' })).toBeInTheDocument();
-    expect(within(dialog()).getByText(/\$82\.69 Food transaction from Sep 25, 2026/)).toBeInTheDocument();
+    expect(within(dialog()).getByText(/\Rs 82\.69 Food transaction from Sep 25, 2026/)).toBeInTheDocument();
     expect(transactionsApi.remove).not.toHaveBeenCalled();
 
     await userEvent.click(within(dialog()).getByRole('button', { name: 'Delete' }));
@@ -160,7 +160,7 @@ describe('Transactions page', () => {
     await userEvent.click(within(screen.getByText('Market').closest('tr')).getByRole('button', { name: 'Edit' }));
     const dialog = document.querySelector('dialog');
     expect(within(dialog).getByRole('heading', { name: 'Edit transaction' })).toBeInTheDocument();
-    expect(within(dialog).getByLabelText('Amount ($)')).toHaveValue(82.69);
+    expect(within(dialog).getByLabelText('Amount (Rs)')).toHaveValue(82.69);
     expect(within(dialog).getByLabelText('Note (optional)')).toHaveValue('Market');
   });
 

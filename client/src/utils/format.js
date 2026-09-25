@@ -1,6 +1,16 @@
-const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+const money = new Intl.NumberFormat('en-PK', {
+  style: 'currency',
+  currency: 'PKR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const wholeMoney = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 });
+
+export const CURRENCY_SYMBOL = 'Rs';
 
 export const formatMoney = (amount) => money.format(amount);
+
+export const formatMoneyWhole = (amount) => wholeMoney.format(amount);
 
 const pad = (n) => String(n).padStart(2, '0');
 

@@ -65,7 +65,7 @@ describe('TransactionForm (new)', () => {
 
   it('submits numeric ids and amount to the API, then reports success', async () => {
     const { onSaved } = renderForm();
-    await userEvent.type(screen.getByLabelText('Amount ($)'), '12.34');
+    await userEvent.type(screen.getByLabelText('Amount (Rs)'), '12.34');
     await userEvent.selectOptions(screen.getByLabelText('Account'), 'Bank');
     await userEvent.selectOptions(screen.getByLabelText('Category'), 'Food');
     await userEvent.type(screen.getByLabelText('Note (optional)'), 'lunch');
@@ -84,7 +84,7 @@ describe('TransactionForm (new)', () => {
 
   it('does not submit without a category', async () => {
     renderForm();
-    await userEvent.type(screen.getByLabelText('Amount ($)'), '5');
+    await userEvent.type(screen.getByLabelText('Amount (Rs)'), '5');
     await userEvent.click(screen.getByRole('button', { name: 'Add transaction' }));
     expect(transactionsApi.create).not.toHaveBeenCalled();
   });
@@ -92,7 +92,7 @@ describe('TransactionForm (new)', () => {
   it('shows the server error and stays open', async () => {
     transactionsApi.create.mockRejectedValue(new Error('accountId does not exist'));
     const { onSaved } = renderForm();
-    await userEvent.type(screen.getByLabelText('Amount ($)'), '5');
+    await userEvent.type(screen.getByLabelText('Amount (Rs)'), '5');
     await userEvent.selectOptions(screen.getByLabelText('Category'), 'Food');
     await userEvent.click(screen.getByRole('button', { name: 'Add transaction' }));
 
@@ -110,7 +110,7 @@ describe('TransactionForm (new)', () => {
   it('explains when there are no accounts yet', () => {
     renderForm({ accounts: [] });
     expect(screen.getByText(/at least one account/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText('Amount ($)')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Amount (Rs)')).not.toBeInTheDocument();
   });
 });
 
@@ -128,7 +128,7 @@ describe('TransactionForm (edit)', () => {
   it('prefills every field', () => {
     renderForm({ transaction: existing });
     expect(screen.getByRole('radio', { name: 'Income' })).toBeChecked();
-    expect(screen.getByLabelText('Amount ($)')).toHaveValue(250);
+    expect(screen.getByLabelText('Amount (Rs)')).toHaveValue(250);
     expect(screen.getByLabelText('Account')).toHaveValue('2');
     expect(screen.getByLabelText('Category')).toHaveValue('2');
     expect(screen.getByLabelText('Date')).toHaveValue('2026-03-04');
@@ -137,7 +137,7 @@ describe('TransactionForm (edit)', () => {
 
   it('updates by id', async () => {
     const { onSaved } = renderForm({ transaction: existing });
-    const amount = screen.getByLabelText('Amount ($)');
+    const amount = screen.getByLabelText('Amount (Rs)');
     await userEvent.clear(amount);
     await userEvent.type(amount, '300');
     await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
