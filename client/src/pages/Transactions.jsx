@@ -24,6 +24,7 @@ export default function Transactions() {
   const { data: transactions, error, loading, reload } = useApi(
     () => transactionsApi.list({ ...filters, sort: sort.by, order: sort.order }),
     [filters, sort],
+    { keepPrevious: true },
   );
   const { data: accounts } = useApi(accountsApi.list);
   const { data: categories } = useApi(categoriesApi.list);

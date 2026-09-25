@@ -30,7 +30,7 @@ export function listTransactions({ accountId, categoryId, type, from, to, sort =
   if (from) { where.push('t.date >= ?'); params.push(from); }
   if (to) { where.push('t.date <= ?'); params.push(to); }
 
-  const column = SORT_COLUMNS[sort];
+  const column = Object.hasOwn(SORT_COLUMNS, sort) ? SORT_COLUMNS[sort] : null;
   if (!column) throw badRequest(`sort must be one of: ${Object.keys(SORT_COLUMNS).join(', ')}`);
   const direction = order === 'asc' ? 'ASC' : 'DESC';
 

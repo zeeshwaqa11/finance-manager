@@ -12,9 +12,14 @@ export const badRequest = (message) => new HttpError(400, message);
 export const notFound = (what) => new HttpError(404, `${what} not found`);
 export const conflict = (message) => new HttpError(409, message);
 
+export function translateUnique(error, message) {
+  return error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? conflict(message) : error;
+}
+
 export function requireId(value, field) {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n <= 0) throw badRequest(`${field} must be a positive integer`);
+  const isDigits = typeof value === 'string' && /^\d+$/.test(value);
+  const n = isDigits ? Number(value) : value;
+  if (!Number.isSafeInteger(n) || n <= 0) throw badRequest(`${field} must be a positive integer`);
   return n;
 }
 
@@ -49,7 +54,8 @@ export function requireMonth(value, field) {
 }
 
 export function requireMoney(value, field, { allowNegative = false, allowZero = false } = {}) {
-  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  const isDecimal = typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim());
+  const n = isDecimal ? Number(value) : value;
   if (typeof n !== 'number' || !Number.isFinite(n)) throw badRequest(`${field} must be a number`);
   const cents = toCents(n);
   if (Math.abs(n * 100 - cents) > 1e-6) throw badRequest(`${field} can have at most 2 decimal places`);

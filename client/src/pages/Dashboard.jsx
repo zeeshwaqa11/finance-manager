@@ -43,8 +43,8 @@ export default function Dashboard() {
   const [month, setMonth] = useState(currentMonth());
   const theme = useChartTheme();
 
-  const summary = useApi(() => reportsApi.summary(month), [month]);
-  const trend = useApi(() => reportsApi.trend(month, 6), [month]);
+  const summary = useApi(() => reportsApi.summary(month), [month], { keepPrevious: true });
+  const trend = useApi(() => reportsApi.trend(month, 6), [month], { keepPrevious: true });
   const categories = useApi(categoriesApi.list);
 
   const error = summary.error || trend.error || categories.error;
