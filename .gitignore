@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# SQLite database (created on first run; regenerate with `npm run reset`)
+server/data/
+*.db
+*.db-shm
+*.db-wal
+
+# Build output
+client/dist/
+
+# Logs, env files, editor/OS files
+*.log
+.env
+.env.*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local Claude Code settings
+.claude/
