@@ -1,29 +1,27 @@
 import { useState } from 'react';
 import { accountsApi } from '../api/index.js';
 import AccountForm from '../components/AccountForm.jsx';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import Status from '../components/Status.jsx';
 import { useApi } from '../hooks/useApi.js';
 import { formatMoney } from '../utils/format.js';
 
+function deleteMessage(account) {
+  const n = account.transactionCount;
+  if (!n) return `Delete "${account.name}"? This cannot be undone.`;
+  return `Delete "${account.name}" and its ${n} transaction${n === 1 ? '' : 's'}? This cannot be undone.`;
+}
+
 export default function Accounts() {
   const { data: accounts, error, loading, reload } = useApi(accountsApi.list);
   const [editing, setEditing] = useState(null);
-  const [actionError, setActionError] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
-  async function remove(account) {
-    const n = account.transactionCount;
-    const message = n
-      ? `Delete "${account.name}" and its ${n} transaction${n === 1 ? '' : 's'}? This cannot be undone.`
-      : `Delete "${account.name}"?`;
-    if (!window.confirm(message)) return;
-    try {
-      await accountsApi.remove(account.id, { cascade: n > 0 });
-      setActionError(null);
-      reload();
-    } catch (err) {
-      setActionError(err.message);
-    }
+  async function confirmDelete() {
+    await accountsApi.remove(deleting.id, { cascade: deleting.transactionCount > 0 });
+    setDeleting(null);
+    reload();
   }
 
   const total = accounts?.reduce((sum, a) => sum + a.balance, 0) ?? 0;
@@ -36,7 +34,6 @@ export default function Accounts() {
       </div>
 
       <Status loading={loading && !accounts} error={error} onRetry={reload} />
-      {actionError && <div className="notice notice-error" role="alert">{actionError}</div>}
 
       {accounts && (
         <div className="card">
@@ -63,7 +60,7 @@ export default function Accounts() {
                       <td className={`num ${a.balance < 0 ? 'negative' : ''}`}>{formatMoney(a.balance)}</td>
                       <td className="actions">
                         <button className="btn-ghost" onClick={() => setEditing(a)}>Edit</button>
-                        <button className="btn-ghost btn-danger" onClick={() => remove(a)}>Delete</button>
+                        <button className="btn-ghost btn-danger" onClick={() => setDeleting(a)}>Delete</button>
                       </td>
                     </tr>
                   ))}
@@ -92,6 +89,15 @@ export default function Accounts() {
             }}
           />
         </Modal>
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          title="Delete account"
+          message={deleteMessage(deleting)}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleting(null)}
+        />
       )}
     </>
   );

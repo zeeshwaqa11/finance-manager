@@ -45,19 +45,34 @@ describe('Accounts page', () => {
     expect(await screen.findByText(/No accounts yet/)).toBeInTheDocument();
   });
 
+  const dialog = () => document.querySelector('dialog');
+
   it('asks for confirmation naming the transactions, then cascades the delete', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<Accounts />);
     await screen.findByText('Main Checking');
     await userEvent.click(within(rowFor('Main Checking')).getByRole('button', { name: 'Delete' }));
 
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('15 transactions'));
+    expect(within(dialog()).getByRole('heading', { name: 'Delete account' })).toBeInTheDocument();
+    expect(within(dialog()).getByText(/its 15 transactions\?/)).toBeInTheDocument();
+    expect(accountsApi.remove).not.toHaveBeenCalled();
+
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(accountsApi.remove).toHaveBeenCalledWith(1, { cascade: true }));
     await waitFor(() => expect(accountsApi.list).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(dialog()).toBeNull());
   });
 
-  it('uses a singular noun for one transaction and skips cascade when there are none', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('never relies on the browser confirm() pop-up', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<Accounts />);
+    await screen.findByText('Empty');
+    await userEvent.click(within(rowFor('Empty')).getByRole('button', { name: 'Delete' }));
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(accountsApi.remove).toHaveBeenCalledWith(3, { cascade: false }));
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('uses a singular noun for one transaction and plain wording when there are none', async () => {
     accountsApi.list.mockResolvedValue([
       { ...accounts[0], id: 7, name: 'One', transactionCount: 1 },
       accounts[2],
@@ -65,27 +80,30 @@ describe('Accounts page', () => {
     render(<Accounts />);
     await screen.findByText('One');
     await userEvent.click(within(rowFor('One')).getByRole('button', { name: 'Delete' }));
-    expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/its 1 transaction\?/));
+    expect(within(dialog()).getByText(/its 1 transaction\?/)).toBeInTheDocument();
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Cancel' }));
 
     await userEvent.click(within(rowFor('Empty')).getByRole('button', { name: 'Delete' }));
-    expect(accountsApi.remove).toHaveBeenLastCalledWith(3, { cascade: false });
+    expect(within(dialog()).getByText('Delete "Empty"? This cannot be undone.')).toBeInTheDocument();
   });
 
-  it('does nothing when the confirmation is declined', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('does nothing when the deletion is cancelled', async () => {
     render(<Accounts />);
     await screen.findByText('Main Checking');
     await userEvent.click(within(rowFor('Main Checking')).getByRole('button', { name: 'Delete' }));
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Cancel' }));
+    expect(dialog()).toBeNull();
     expect(accountsApi.remove).not.toHaveBeenCalled();
   });
 
-  it('shows the error when a delete fails', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('shows the error inside the dialog when a delete fails and keeps it open', async () => {
     accountsApi.remove.mockRejectedValue(new Error('Account has transactions'));
     render(<Accounts />);
     await screen.findByText('Empty');
     await userEvent.click(within(rowFor('Empty')).getByRole('button', { name: 'Delete' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Account has transactions');
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Delete' }));
+    expect(await within(dialog()).findByRole('alert')).toHaveTextContent('Account has transactions');
+    expect(within(dialog()).getByRole('button', { name: 'Delete' })).toBeEnabled();
   });
 
   it('opens the add form in a dialog and closes it on cancel', async () => {
