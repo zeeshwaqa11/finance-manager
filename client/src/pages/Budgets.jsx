@@ -52,6 +52,7 @@ function BudgetRow({ category, budget, spent, month, onChanged, onError }) {
 export default function Budgets() {
   const [month, setMonth] = useState(currentMonth());
   const [actionError, setActionError] = useState(null);
+  const [info, setInfo] = useState(null);
 
   const categories = useApi(categoriesApi.list);
   const budgets = useApi(() => budgetsApi.list(month), [month]);
@@ -72,7 +73,8 @@ export default function Budgets() {
       const existing = new Set(budgets.data.map((b) => b.categoryId));
       const missing = previous.filter((b) => !existing.has(b.categoryId));
       await Promise.all(missing.map((b) => budgetsApi.create({ categoryId: b.categoryId, month, amount: b.amount })));
-      setActionError(missing.length ? null : `Nothing to copy: no new budgets in ${formatMonth(prevMonth)}.`);
+      setActionError(null);
+      setInfo(missing.length ? null : `Nothing to copy: no new budgets in ${formatMonth(prevMonth)}.`);
       reload();
     } catch (err) {
       setActionError(err.message);
@@ -87,7 +89,14 @@ export default function Budgets() {
     <>
       <div className="page-head">
         <h1>Budgets</h1>
-        <MonthSelector month={month} onChange={setMonth} />
+        <MonthSelector
+          month={month}
+          onChange={(m) => {
+            setMonth(m);
+            setInfo(null);
+            setActionError(null);
+          }}
+        />
       </div>
 
       <p className="muted">
@@ -97,6 +106,7 @@ export default function Budgets() {
 
       <Status loading={!ready && !error} error={error} onRetry={() => { categories.reload(); reload(); }} />
       {actionError && <div className="notice notice-error" role="alert">{actionError}</div>}
+      {info && <div className="notice notice-info" role="status">{info}</div>}
 
       {ready && (
         <div className="card">

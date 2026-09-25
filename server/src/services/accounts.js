@@ -1,5 +1,5 @@
 import { db } from '../db/connection.js';
-import { conflict, notFound } from '../middleware/validate.js';
+import { conflict, notFound, translateUnique } from '../middleware/validate.js';
 import { fromCents } from '../utils/money.js';
 
 const SELECT_ACCOUNTS = `
@@ -30,16 +30,25 @@ export function getAccount(id) {
 }
 
 export function createAccount({ name, type, openingBalanceCents }) {
-  const { lastInsertRowid } = db
-    .prepare('INSERT INTO accounts (name, type, opening_balance_cents) VALUES (?, ?, ?)')
-    .run(name, type, openingBalanceCents);
-  return getAccount(lastInsertRowid);
+  try {
+    const { lastInsertRowid } = db
+      .prepare('INSERT INTO accounts (name, type, opening_balance_cents) VALUES (?, ?, ?)')
+      .run(name, type, openingBalanceCents);
+    return getAccount(lastInsertRowid);
+  } catch (error) {
+    throw translateUnique(error, `An account named "${name}" already exists`);
+  }
 }
 
 export function updateAccount(id, { name, type, openingBalanceCents }) {
-  const { changes } = db
-    .prepare('UPDATE accounts SET name = ?, type = ?, opening_balance_cents = ? WHERE id = ?')
-    .run(name, type, openingBalanceCents, id);
+  let changes;
+  try {
+    ({ changes } = db
+      .prepare('UPDATE accounts SET name = ?, type = ?, opening_balance_cents = ? WHERE id = ?')
+      .run(name, type, openingBalanceCents, id));
+  } catch (error) {
+    throw translateUnique(error, `An account named "${name}" already exists`);
+  }
   if (!changes) throw notFound('Account');
   return getAccount(id);
 }

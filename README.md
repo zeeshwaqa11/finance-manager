@@ -72,7 +72,11 @@ Both work while the server is running. To start over completely, stop the server
 npm test
 ```
 
-25 API tests (Node's built-in test runner) run against an in-memory database and cover balance updates, validation, filtering and sorting, budget rules, and the report calculations.
+This runs both suites; use `npm run test:server` or `npm run test:client` to run one.
+
+**Server (85 tests, Node's built-in test runner).** Unit tests for the money and date helpers, the request validators, the error handler, and the database layer (schema, constraints, seed data); plus API tests against an in-memory database covering balance updates, validation, filtering and sorting, budget rules, report calculations, and regressions for fixed bugs.
+
+**Client (111 tests, Vitest with Testing Library).** Unit tests for the formatters, API client, category color assignment and the `useApi` hook (including out-of-order responses), component tests for the forms, modal and month selector, and page tests for the Dashboard, Accounts, Transactions and Budgets pages with the API mocked.
 
 ## Project structure
 

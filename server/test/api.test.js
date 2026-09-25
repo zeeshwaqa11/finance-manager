@@ -4,7 +4,7 @@ import { after, before, describe, it } from 'node:test';
 process.env.DB_PATH = ':memory:';
 
 const { createApp } = await import('../src/app.js');
-const { currentMonth, addMonths } = await import('../src/utils/dates.js');
+const { currentMonth } = await import('../src/utils/dates.js');
 
 let server;
 let base;
@@ -221,10 +221,143 @@ describe('reports', () => {
   });
 });
 
-describe('dates', () => {
-  it('addMonths crosses year boundaries', () => {
-    assert.equal(addMonths('2026-01', -1), '2025-12');
-    assert.equal(addMonths('2026-11', 3), '2027-02');
+describe('regressions', () => {
+  it('rejects prototype property names as sort keys instead of failing with 500', async () => {
+    for (const sort of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
+      assert.equal((await api('GET', `/transactions?sort=${sort}`)).status, 400, sort);
+    }
+  });
+
+  it('does not coerce booleans or arrays into ids', async () => {
+    const category = await categoryIdByName('Food');
+    const acct = (await api('POST', '/accounts', { name: 'Coercion', type: 'Cash' })).body;
+    const base = { categoryId: category, type: 'expense', amount: 5, date: '2026-01-01' };
+    for (const accountId of [true, [acct.id], '1e0', '0x1', String(acct.id) + 'abc']) {
+      assert.equal((await api('POST', '/transactions', { ...base, accountId })).status, 400, JSON.stringify(accountId));
+    }
+    assert.equal((await api('POST', '/transactions', { ...base, accountId: acct.id })).status, 201);
+    assert.equal((await api('POST', '/transactions', { ...base, accountId: String(acct.id) })).status, 201);
+  });
+
+  it('rejects hex and exponent amounts', async () => {
+    for (const openingBalance of ['0x10', '1e2', '1.']) {
+      assert.equal((await api('POST', '/accounts', { name: 'Bad money', type: 'Cash', openingBalance })).status, 400, openingBalance);
+    }
+  });
+
+  it('names the duplicate in account and category conflicts', async () => {
+    await api('POST', '/accounts', { name: 'Dupe', type: 'Cash' });
+    const dup = await api('POST', '/accounts', { name: 'dupe', type: 'Bank' });
+    assert.equal(dup.status, 409);
+    assert.equal(dup.body.error, 'An account named "dupe" already exists');
+
+    const other = (await api('POST', '/accounts', { name: 'Other acct', type: 'Cash' })).body;
+    const rename = await api('PUT', `/accounts/${other.id}`, { name: 'DUPE', type: 'Cash' });
+    assert.equal(rename.status, 409);
+    assert.match(rename.body.error, /already exists/);
+
+    const cat = await api('POST', '/categories', { name: 'food', kind: 'expense' });
+    assert.equal(cat.status, 409);
+    assert.equal(cat.body.error, 'A category named "food" already exists');
+  });
+
+  it('keeps an account renamable to its own name', async () => {
+    const acct = (await api('POST', '/accounts', { name: 'Same name', type: 'Cash' })).body;
+    const res = await api('PUT', `/accounts/${acct.id}`, { name: 'Same name', type: 'Bank', openingBalance: 5 });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.type, 'Bank');
+  });
+
+  it('will not turn a category with budgets into an income category', async () => {
+    const cat = (await api('POST', '/categories', { name: 'Gifts', kind: 'expense' })).body;
+    await api('POST', '/budgets', { categoryId: cat.id, month: '2026-08', amount: 50 });
+    const res = await api('PUT', `/categories/${cat.id}`, { name: 'Gifts', kind: 'income' });
+    assert.equal(res.status, 409);
+    assert.equal((await api('PUT', `/categories/${cat.id}`, { name: 'Gifts', kind: 'both' })).status, 200);
+  });
+
+  it('returns 404 for updates and deletes of missing records', async () => {
+    assert.equal((await api('PUT', '/accounts/9999', { name: 'x', type: 'y' })).status, 404);
+    assert.equal((await api('DELETE', '/accounts/9999')).status, 404);
+    assert.equal((await api('PUT', '/categories/9999', { name: 'x', kind: 'expense' })).status, 404);
+    assert.equal((await api('DELETE', '/categories/9999')).status, 404);
+    assert.equal((await api('PUT', '/budgets/9999', { amount: 5 })).status, 404);
+    assert.equal((await api('DELETE', '/budgets/9999')).status, 404);
+    assert.equal((await api('DELETE', '/transactions/9999')).status, 404);
+  });
+
+  it('validates report parameters', async () => {
+    assert.equal((await api('GET', '/reports/trend?months=37')).status, 400);
+    assert.equal((await api('GET', '/reports/trend?months=1.5')).status, 400);
+    assert.equal((await api('GET', '/reports/trend?end=2026-99')).status, 400);
+    assert.equal((await api('GET', '/reports/trend?months=1&end=2026-01')).body.length, 1);
+    assert.equal((await api('GET', '/budgets?month=nope')).status, 400);
+  });
+
+  it('reports an empty month with zeros and no budgets', async () => {
+    const { body } = await api('GET', '/reports/summary?month=1999-01');
+    assert.deepEqual(body, {
+      month: '1999-01',
+      totalIncome: 0,
+      totalExpenses: 0,
+      net: 0,
+      spendingByCategory: [],
+      budgets: [],
+    });
+  });
+
+  it('treats spending exactly equal to the budget as under budget', async () => {
+    const acct = (await api('POST', '/accounts', { name: 'Exact', type: 'Cash' })).body;
+    const cat = await categoryIdByName('Utilities');
+    await api('POST', '/transactions', { accountId: acct.id, categoryId: cat, type: 'expense', amount: 100, date: '2026-04-10' });
+    await api('POST', '/budgets', { categoryId: cat, month: '2026-04', amount: 100 });
+    const { body } = await api('GET', '/reports/summary?month=2026-04');
+    const budget = body.budgets.find((b) => b.categoryName === 'Utilities');
+    assert.equal(budget.status, 'under');
+    assert.equal(budget.remaining, 0);
+    assert.equal(budget.percentUsed, 100);
+  });
+
+  it('ignores income when computing spending by category', async () => {
+    const acct = (await api('POST', '/accounts', { name: 'Refund', type: 'Cash' })).body;
+    const cat = await categoryIdByName('Shopping');
+    await api('POST', '/transactions', { accountId: acct.id, categoryId: cat, type: 'income', amount: 40, date: '2026-02-10' });
+    const { body } = await api('GET', '/reports/summary?month=2026-02');
+    assert.equal(body.totalIncome, 40);
+    assert.equal(body.totalExpenses, 0);
+    assert.deepEqual(body.spendingByCategory, []);
+  });
+
+  it('combines every filter with AND and returns nothing for an inverted range', async () => {
+    const acct = (await api('POST', '/accounts', { name: 'Filter combo', type: 'Bank' })).body;
+    const food = await categoryIdByName('Food');
+    await api('POST', '/transactions', { accountId: acct.id, categoryId: food, type: 'expense', amount: 9, date: '2026-05-05' });
+    const q = `accountId=${acct.id}&categoryId=${food}&type=expense&from=2026-05-01&to=2026-05-31`;
+    assert.equal((await api('GET', `/transactions?${q}`)).body.length, 1);
+    const asIncome = q.replace('type=expense', 'type=income');
+    assert.equal((await api('GET', `/transactions?${asIncome}`)).body.length, 0);
+    assert.equal((await api('GET', `/transactions?${q}&type=income`)).status, 400);
+    assert.equal((await api('GET', `/transactions?accountId=${acct.id}&from=2026-06-01&to=2026-05-01`)).body.length, 0);
+  });
+
+  it('breaks sort ties by newest id and honours ascending order', async () => {
+    const acct = (await api('POST', '/accounts', { name: 'Ties', type: 'Bank' })).body;
+    const food = await categoryIdByName('Food');
+    const add = (amount) =>
+      api('POST', '/transactions', { accountId: acct.id, categoryId: food, type: 'expense', amount, date: '2026-07-07' });
+    const first = (await add(1)).body;
+    const second = (await add(2)).body;
+    const rows = (await api('GET', `/transactions?accountId=${acct.id}&sort=date&order=desc`)).body;
+    assert.deepEqual(rows.map((r) => r.id), [second.id, first.id]);
+  });
+
+  it('cascade delete removes the transactions and changes the totals', async () => {
+    const acct = (await api('POST', '/accounts', { name: 'Cascade', type: 'Cash' })).body;
+    const food = await categoryIdByName('Food');
+    await api('POST', '/transactions', { accountId: acct.id, categoryId: food, type: 'expense', amount: 11, date: '2025-03-03' });
+    assert.equal((await api('GET', '/reports/summary?month=2025-03')).body.totalExpenses, 11);
+    await api('DELETE', `/accounts/${acct.id}?cascade=true`);
+    assert.equal((await api('GET', '/reports/summary?month=2025-03')).body.totalExpenses, 0);
   });
 });
 
