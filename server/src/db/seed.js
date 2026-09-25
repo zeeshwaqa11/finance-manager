@@ -4,36 +4,36 @@ import { addMonths, currentMonth, todayISO } from '../utils/dates.js';
 import { toCents } from '../utils/money.js';
 
 const ACCOUNTS = [
-  ['Wallet', 'Cash', 900],
-  ['Main Checking', 'Bank', 2500],
-  ['Visa Card', 'Credit Card', 0],
+  ['Wallet', 'Cash', 70000],
+  ['Bank Account', 'Bank', 250000],
+  ['Credit Card', 'Credit Card', 0],
 ];
 
 const MONTH_TEMPLATE = [
-  [1, 'Main Checking', 'Salary', 'income', 3200, 'Monthly paycheck', false],
-  [1, 'Main Checking', 'Rent', 'expense', 1200, 'Apartment rent', false],
-  [2, 'Visa Card', 'Food', 'expense', 68.45, 'Weekly groceries', true],
-  [3, 'Wallet', 'Transport', 'expense', 45, 'Fuel', true],
-  [5, 'Main Checking', 'Utilities', 'expense', 95.4, 'Electricity bill', false],
-  [6, 'Wallet', 'Food', 'expense', 42.1, 'Lunch out', true],
-  [8, 'Visa Card', 'Entertainment', 'expense', 15.99, 'Streaming subscription', false],
-  [9, 'Visa Card', 'Food', 'expense', 85.3, 'Groceries', true],
-  [10, 'Wallet', 'Transport', 'expense', 22.5, 'Bus pass top-up', true],
-  [12, 'Main Checking', 'Utilities', 'expense', 62.1, 'Internet', false],
-  [13, 'Wallet', 'Food', 'expense', 37.8, 'Takeaway dinner', true],
-  [14, 'Visa Card', 'Entertainment', 'expense', 42, 'Cinema and dinner', true],
-  [15, 'Main Checking', 'Other', 'income', 250, 'Freelance gig', false],
-  [17, 'Visa Card', 'Food', 'expense', 96.25, 'Groceries', true],
-  [18, 'Wallet', 'Transport', 'expense', 48, 'Fuel', true],
-  [19, 'Visa Card', 'Health', 'expense', 28.5, 'Pharmacy', true],
-  [20, 'Visa Card', 'Shopping', 'expense', 79.99, 'New shoes', true],
-  [21, 'Visa Card', 'Food', 'expense', 54.6, 'Groceries', true],
-  [22, 'Visa Card', 'Entertainment', 'expense', 60, 'Concert ticket', true],
-  [25, 'Wallet', 'Food', 'expense', 71.9, 'Farmers market', true],
-  [28, 'Visa Card', 'Food', 'expense', 63.15, 'Groceries', true],
+  [1, 'Bank Account', 'Salary', 'income', 185000, 'Monthly salary', false],
+  [1, 'Bank Account', 'Rent', 'expense', 55000, 'House rent', false],
+  [2, 'Credit Card', 'Food', 'expense', 5200, 'Weekly groceries', true],
+  [3, 'Wallet', 'Transport', 'expense', 3500, 'Petrol', true],
+  [5, 'Bank Account', 'Utilities', 'expense', 14500, 'Electricity bill', false],
+  [6, 'Wallet', 'Food', 'expense', 3100, 'Lunch out', true],
+  [8, 'Credit Card', 'Entertainment', 'expense', 1500, 'Streaming subscription', false],
+  [9, 'Credit Card', 'Food', 'expense', 6800, 'Groceries', true],
+  [10, 'Wallet', 'Transport', 'expense', 1800, 'Ride-hailing', true],
+  [12, 'Bank Account', 'Utilities', 'expense', 4500, 'Internet bill', false],
+  [13, 'Wallet', 'Food', 'expense', 2900, 'Dinner takeaway', true],
+  [14, 'Credit Card', 'Entertainment', 'expense', 3500, 'Cinema and dinner', true],
+  [15, 'Bank Account', 'Other', 'income', 22000, 'Freelance project', false],
+  [17, 'Credit Card', 'Food', 'expense', 7400, 'Groceries', true],
+  [18, 'Wallet', 'Transport', 'expense', 4000, 'Petrol', true],
+  [19, 'Credit Card', 'Health', 'expense', 2400, 'Pharmacy', true],
+  [20, 'Credit Card', 'Shopping', 'expense', 6500, 'New shoes', true],
+  [21, 'Credit Card', 'Food', 'expense', 4300, 'Groceries', true],
+  [22, 'Credit Card', 'Entertainment', 'expense', 5000, 'Concert ticket', true],
+  [25, 'Wallet', 'Food', 'expense', 5600, 'Sabzi mandi', true],
+  [28, 'Credit Card', 'Food', 'expense', 4800, 'Groceries', true],
 ];
 
-const BUDGETS = { Food: 400, Transport: 120, Entertainment: 150, Utilities: 170 };
+const BUDGETS = { Food: 32000, Transport: 9000, Entertainment: 12000, Utilities: 20000 };
 
 const MONTH_FACTORS = [0.7, 1.0, 1.15];
 

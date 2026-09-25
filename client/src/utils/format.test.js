@@ -1,15 +1,47 @@
 import { describe, expect, it } from 'vitest';
-import { addMonths, currentMonth, formatDate, formatMoney, formatMonth, todayISO } from './format.js';
+import {
+  CURRENCY_SYMBOL,
+  addMonths,
+  currentMonth,
+  formatDate,
+  formatMoney,
+  formatMoneyWhole,
+  formatMonth,
+  todayISO,
+} from './format.js';
 
 describe('formatMoney', () => {
-  it('formats dollars with separators and two decimals', () => {
-    expect(formatMoney(0)).toBe('$0.00');
-    expect(formatMoney(1234.5)).toBe('$1,234.50');
-    expect(formatMoney(1000000)).toBe('$1,000,000.00');
+  it('formats rupees with separators and two decimals', () => {
+    expect(formatMoney(0)).toBe('Rs\u00a00.00');
+    expect(formatMoney(1234.5)).toBe('Rs\u00a01,234.50');
+    expect(formatMoney(1000000)).toBe('Rs\u00a01,000,000.00');
+  });
+
+  it('always shows two decimals so paisa are never hidden', () => {
+    expect(formatMoney(10.5)).toBe('Rs\u00a010.50');
+    expect(formatMoney(207000)).toBe('Rs\u00a0207,000.00');
+    expect(formatMoney(0.07)).toBe('Rs\u00a00.07');
   });
 
   it('formats negatives with a minus sign', () => {
-    expect(formatMoney(-1623.35)).toBe('-$1,623.35');
+    expect(formatMoney(-1623.35)).toBe('-Rs\u00a01,623.35');
+  });
+});
+
+describe('formatMoneyWhole', () => {
+  it('drops the decimals for compact labels', () => {
+    expect(formatMoneyWhole(150000)).toBe('Rs\u00a0150,000');
+    expect(formatMoneyWhole(0)).toBe('Rs\u00a00');
+  });
+});
+
+describe('currency', () => {
+  it('uses the Pakistani rupee symbol and never a dollar sign', () => {
+    expect(CURRENCY_SYMBOL).toBe('Rs');
+    for (const amount of [0, 1, 99.5, -20, 1234567.89]) {
+      expect(formatMoney(amount)).not.toContain('$');
+      expect(formatMoney(amount)).toContain('Rs');
+    }
   });
 });
 

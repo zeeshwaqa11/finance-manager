@@ -35,7 +35,7 @@ function BudgetRow({ category, budget, spent, month, onChanged, onError }) {
       <td className="num">{formatMoney(spent)}</td>
       <td>
         <div className="budget-input">
-          <span aria-hidden="true">$</span>
+          <span aria-hidden="true">Rs</span>
           <input
             type="number" min="0.01" step="0.01" placeholder="No budget"
             value={value} onChange={(e) => setValue(e.target.value)}

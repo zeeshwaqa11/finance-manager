@@ -3,6 +3,7 @@
 A full-stack personal finance app that runs entirely on your own machine: no cloud services, no paid APIs, no separate database server.
 
 - **Accounts**: Cash, Bank, Credit Card, or any custom type, each with a balance calculated from its transactions
+- **Pakistani rupees (PKR)**: every amount is shown as `Rs 1,234.50`
 - **Transactions**: add, edit and delete; filter by account, category, type and date range; sort by any column
 - **Budgets**: a monthly budget per category; categories without a budget are never flagged
 - **Dashboard**: income, expenses and net for any month, spending by category, budget progress (over/under), and a 6-month spending trend
@@ -158,13 +159,13 @@ budgets       id, category_id, month (YYYY-MM), amount_cents, UNIQUE(category_id
 | GET | `/api/reports/summary?month=YYYY-MM` | totals, spending by category, budget status |
 | GET | `/api/reports/trend?end=YYYY-MM&months=6` | total spending per month, oldest first |
 
-Amounts are in dollars in the API. Errors are always JSON: `{ "error": "message" }`.
+Amounts are in Pakistani rupees (PKR) in the API. Errors are always JSON: `{ "error": "message" }`.
 
 ## Design decisions
 
 **Layered backend.** Routes only handle HTTP (parse, validate, respond). Services own the SQL and business rules. The database module owns the connection. Each layer can be read, tested and changed on its own.
 
-**Money is stored as integer cents.** Floating point cannot represent values like 0.1 exactly, so sums drift. Cents are exact integers; conversion to and from dollars happens only at the API edge (`utils/money.js`), and there is a test that adds 0.1 and 0.2.
+**Money is stored as integers in the smallest unit (paisa; the columns are named `*_cents`).** Floating point cannot represent values like 0.1 exactly, so sums drift. Integers are exact; conversion to and from rupees happens only at the API edge (`utils/money.js`), and there is a test that adds 0.1 and 0.2.
 
 **Balances are derived, never stored.** An account balance is its opening balance plus income minus expenses, computed in SQL. Adding, editing or deleting a transaction therefore updates the balance automatically, and it can never go out of sync. The trade-off is a small aggregate query per read, which is negligible at personal-finance scale.
 

@@ -3,7 +3,7 @@ import {
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { useChartTheme } from '../hooks/useChartTheme.js';
-import { formatMoney, formatMonth } from '../utils/format.js';
+import { formatMoney, formatMoneyWhole, formatMonth } from '../utils/format.js';
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip);
 
@@ -64,7 +64,7 @@ export function TrendBars({ trend, selectedMonth }) {
         beginAtZero: true,
         grid: { color: theme.grid },
         border: { display: false },
-        ticks: { color: theme.muted, callback: (v) => formatMoney(v).replace('.00', '') },
+        ticks: { color: theme.muted, callback: (v) => formatMoneyWhole(v) },
       },
     },
   };

@@ -48,7 +48,7 @@ describe('Budgets page', () => {
     expect(screen.getByLabelText('Rent budget')).toHaveValue(null);
     expect(screen.queryByLabelText('Salary budget')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Food budget')).toHaveValue(300);
-    expect(screen.getByText('$120.00')).toBeInTheDocument();
+    expect(screen.getByText('Rs 120.00')).toBeInTheDocument();
   });
 
   it('creates a budget for a category that has none', async () => {
