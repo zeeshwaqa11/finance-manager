@@ -1,28 +1,39 @@
 import { useState } from 'react';
 import { categoriesApi, reportsApi } from '../api/index.js';
 import { SpendingDoughnut, TrendBars } from '../components/charts.jsx';
+import EmptyState from '../components/EmptyState.jsx';
+import Icon from '../components/Icon.jsx';
 import MonthSelector from '../components/MonthSelector.jsx';
 import Status from '../components/Status.jsx';
 import { useApi } from '../hooks/useApi.js';
 import { assignCategoryColors, useChartTheme } from '../hooks/useChartTheme.js';
 import { currentMonth, formatMoney, formatMonth } from '../utils/format.js';
 
-function StatCard({ label, value, className = '' }) {
+function StatCard({ icon, tone, label, value, caption, className = '' }) {
   return (
-    <div className="card">
-      <div className="stat-label">{label}</div>
-      <div className={`stat-value ${className}`}>{value}</div>
+    <div className="card stat-card">
+      <span className={`tile tile-${tone}`}>
+        <Icon name={icon} />
+      </span>
+      <div className="stat-body">
+        <div className="stat-label">{label}</div>
+        <div className={`stat-value ${className}`}>{value}</div>
+        {caption && <div className="stat-caption">{caption}</div>}
+      </div>
     </div>
   );
 }
 
-function BudgetRow({ b }) {
+function BudgetRow({ b, color }) {
   const over = b.status === 'over';
   return (
     <div className="budget-row">
       <div className="budget-top">
-        <strong>{b.categoryName}</strong>
-        <span>{formatMoney(b.spent)} of {formatMoney(b.budget)}</span>
+        <span className="budget-name">
+          <span className="dot" style={{ background: color }} />
+          <strong>{b.categoryName}</strong>
+        </span>
+        <span className="budget-figures">{formatMoney(b.spent)} of {formatMoney(b.budget)}</span>
       </div>
       <div
         className="progress" role="progressbar" aria-label={`${b.categoryName} budget used`}
@@ -31,12 +42,17 @@ function BudgetRow({ b }) {
         <div className={over ? 'over' : 'under'} style={{ width: `${Math.min(b.percentUsed, 100)}%` }} />
       </div>
       <div className={`budget-status ${b.status}`}>
+        <Icon name={over ? 'alert' : 'check'} size={14} />
         {over
-          ? `▲ Over budget by ${formatMoney(-b.remaining)} (${b.percentUsed}%)`
-          : `✓ Under budget, ${formatMoney(b.remaining)} left (${b.percentUsed}%)`}
+          ? `Over budget by ${formatMoney(-b.remaining)} (${b.percentUsed}%)`
+          : `Under budget, ${formatMoney(b.remaining)} left (${b.percentUsed}%)`}
       </div>
     </div>
   );
+}
+
+function percentOf(part, whole) {
+  return whole > 0 ? Math.round((part / whole) * 100) : null;
 }
 
 export default function Dashboard() {
@@ -54,10 +70,19 @@ export default function Dashboard() {
 
   const items = s?.spendingByCategory.map((c) => ({ id: c.categoryId, name: c.categoryName, value: c.spent })) ?? [];
 
+  const spentShare = s ? percentOf(s.totalExpenses, s.totalIncome) : null;
+  const savedShare = s && s.net > 0 ? percentOf(s.net, s.totalIncome) : null;
+  const netCaption = savedShare !== null
+    ? `Saved ${savedShare}% of income`
+    : s && s.net < 0 ? 'Spending exceeds income' : null;
+
   return (
     <>
       <div className="page-head">
-        <h1>Dashboard</h1>
+        <div>
+          <h1>Dashboard</h1>
+          <p className="page-sub">{ready ? `Overview for ${formatMonth(month)}` : 'Your money at a glance'}</p>
+        </div>
         <MonthSelector month={month} onChange={setMonth} />
       </div>
 
@@ -68,26 +93,44 @@ export default function Dashboard() {
       />
 
       {ready && (
-        <>
+        <div className="stack">
           <div className="grid grid-3">
-            <StatCard label="Income" value={formatMoney(s.totalIncome)} className="income" />
-            <StatCard label="Expenses" value={formatMoney(s.totalExpenses)} />
             <StatCard
+              icon="arrow-down-left"
+              tone="income"
+              label="Income"
+              value={formatMoney(s.totalIncome)}
+              className="income"
+              caption="Money received"
+            />
+            <StatCard
+              icon="arrow-up-right"
+              tone="expense"
+              label="Expenses"
+              value={formatMoney(s.totalExpenses)}
+              caption={spentShare !== null ? `${spentShare}% of income` : null}
+            />
+            <StatCard
+              icon="wallet"
+              tone="net"
               label="Net"
               value={`${s.net > 0 ? '+' : ''}${formatMoney(s.net)}`}
               className={s.net < 0 ? 'negative' : s.net > 0 ? 'income' : ''}
+              caption={netCaption}
             />
           </div>
 
-          <div className="grid grid-2 mt">
+          <div className="grid grid-2">
             <section className="card">
-              <h2>Spending by category</h2>
+              <div className="card-head">
+                <h2>Spending by category</h2>
+              </div>
               {items.length === 0 ? (
-                <p className="empty">No expenses in {formatMonth(month)}.</p>
+                <EmptyState icon="pie">No expenses in {formatMonth(month)}.</EmptyState>
               ) : (
                 <>
                   <div className="chart-box">
-                    <SpendingDoughnut items={items} colors={colors} />
+                    <SpendingDoughnut items={items} colors={colors} total={s.totalExpenses} />
                   </div>
                   <ul className="legend">
                     {items.map((i) => (
@@ -104,17 +147,22 @@ export default function Dashboard() {
             </section>
 
             <section className="card">
-              <h2>Budgets</h2>
+              <div className="card-head">
+                <h2>Budgets</h2>
+              </div>
               {s.budgets.length === 0 ? (
-                <p className="empty">No budgets set for {formatMonth(month)}. Add some on the Budgets page.</p>
+                <EmptyState icon="target">No budgets set for {formatMonth(month)}. Add some on the Budgets page.</EmptyState>
               ) : (
-                s.budgets.map((b) => <BudgetRow key={b.categoryId} b={b} />)
+                s.budgets.map((b) => <BudgetRow key={b.categoryId} b={b} color={colors.get(b.categoryId) ?? theme.muted} />)
               )}
             </section>
           </div>
 
-          <section className="card mt">
-            <h2>Spending, last 6 months</h2>
+          <section className="card">
+            <div className="card-head">
+              <h2>Spending, last 6 months</h2>
+              <span className="card-note">{formatMonth(month)} highlighted</span>
+            </div>
             <div className="chart-box">
               <TrendBars trend={trend.data} selectedMonth={month} />
             </div>
@@ -135,7 +183,7 @@ export default function Dashboard() {
               </table>
             </details>
           </section>
-        </>
+        </div>
       )}
     </>
   );

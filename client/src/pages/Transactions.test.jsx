@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { accountsApi, categoriesApi, transactionsApi } from '../api/index.js';
+import { ToastProvider } from '../components/Toast.jsx';
 import Transactions from './Transactions.jsx';
 
 vi.mock('../api/index.js', () => ({
@@ -44,19 +45,32 @@ describe('Transactions page', () => {
     const expense = screen.getByText('Market').closest('tr');
     expect(within(expense).getByText('Sep 25, 2026')).toBeInTheDocument();
     expect(within(expense).getByText('−Rs 82.69')).toHaveClass('expense');
-    const income = screen.getByText('Salary', { selector: 'td' }).closest('tr');
+    const income = screen.getByText('Salary', { selector: '.tx-cat-name' }).closest('tr');
     expect(within(income).getByText('+Rs 3,200.00')).toHaveClass('income');
   });
 
-  it('summarises the count and net of what is shown', async () => {
+  it('summarises the count, income, expenses and net of what is shown', async () => {
     await renderPage();
-    expect(screen.getByText(/2 transactions · Net \Rs 3,117\.31/)).toBeInTheDocument();
+    expect(screen.getByText('2 transactions')).toBeInTheDocument();
+    expect(screen.getByText('Rs 3,200.00')).toHaveClass('income');
+    expect(screen.getByText('Rs 82.69')).toBeInTheDocument();
+    expect(screen.getByText('Rs 3,117.31')).toHaveClass('income');
   });
 
-  it('uses the singular for one transaction', async () => {
+  it('uses the singular for one transaction and marks a negative net', async () => {
     transactionsApi.list.mockResolvedValue([transactions[0]]);
     await renderPage();
-    expect(screen.getByText(/1 transaction · Net -\Rs 82\.69/)).toBeInTheDocument();
+    expect(screen.getByText('1 transaction')).toBeInTheDocument();
+    expect(screen.getByText('-Rs 82.69')).toHaveClass('negative');
+  });
+
+  it('shows the category with its note underneath', async () => {
+    await renderPage();
+    const row = screen.getByText('Market').closest('tr');
+    expect(within(row).getByText('Food', { selector: '.tx-cat-name' })).toBeInTheDocument();
+    expect(within(row).getByText('Market')).toHaveClass('tx-note');
+    const noteless = screen.getByText('Salary', { selector: '.tx-cat-name' }).closest('tr');
+    expect(noteless.querySelector('.tx-note')).toBeNull();
   });
 
   it('requests newest first by default', async () => {
@@ -110,7 +124,7 @@ describe('Transactions page', () => {
 
   const dialog = () => document.querySelector('dialog');
   const clickRowDelete = (note) =>
-    userEvent.click(within(screen.getByText(note).closest('tr')).getByRole('button', { name: 'Delete' }));
+    userEvent.click(within(screen.getByText(note).closest('tr')).getByRole('button', { name: /^Delete/ }));
 
   it('asks for confirmation, then deletes and reloads', async () => {
     await renderPage();
@@ -132,6 +146,18 @@ describe('Transactions page', () => {
     await userEvent.click(within(dialog()).getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(transactionsApi.remove).toHaveBeenCalledWith(11));
     expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('confirms a deletion with a toast', async () => {
+    render(
+      <ToastProvider>
+        <Transactions />
+      </ToastProvider>,
+    );
+    await screen.findByText('Market');
+    await clickRowDelete('Market');
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Delete' }));
+    expect(await screen.findByText('Transaction deleted')).toBeInTheDocument();
   });
 
   it('does not delete when the confirmation is cancelled', async () => {
@@ -157,7 +183,7 @@ describe('Transactions page', () => {
     await userEvent.click(within(document.querySelector('dialog')).getByRole('button', { name: 'Cancel' }));
     expect(document.querySelector('dialog')).toBeNull();
 
-    await userEvent.click(within(screen.getByText('Market').closest('tr')).getByRole('button', { name: 'Edit' }));
+    await userEvent.click(within(screen.getByText('Market').closest('tr')).getByRole('button', { name: /^Edit/ }));
     const dialog = document.querySelector('dialog');
     expect(within(dialog).getByRole('heading', { name: 'Edit transaction' })).toBeInTheDocument();
     expect(within(dialog).getByLabelText('Amount (Rs)')).toHaveValue(82.69);

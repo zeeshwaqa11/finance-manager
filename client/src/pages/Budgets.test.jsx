@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { budgetsApi, categoriesApi, reportsApi } from '../api/index.js';
+import { ToastProvider } from '../components/Toast.jsx';
 import { addMonths, currentMonth } from '../utils/format.js';
 import Budgets from './Budgets.jsx';
 
@@ -42,6 +43,68 @@ beforeEach(() => {
   budgetsApi.remove.mockResolvedValue(null);
 });
 
+describe('Budgets page: summary and progress', () => {
+  it('summarises the total budgeted and how much of it is used', async () => {
+    await renderPage();
+    expect(screen.getByText('Total budgeted')).toBeInTheDocument();
+    expect(screen.getByText('Rs 300.00')).toBeInTheDocument();
+    expect(screen.getByText('Rs 120.00 of Rs 300.00')).toBeInTheDocument();
+    expect(screen.getByText('40% used')).toBeInTheDocument();
+  });
+
+  it('hides the summary when no budgets are set', async () => {
+    budgetsApi.list.mockResolvedValue([]);
+    render(<Budgets />);
+    await screen.findByLabelText('Food budget');
+    expect(screen.queryByText('Total budgeted')).not.toBeInTheDocument();
+  });
+
+  it('draws a progress bar only for categories that have a budget', async () => {
+    await renderPage();
+    const bar = screen.getByRole('progressbar', { name: 'Food budget used' });
+    expect(bar).toHaveAttribute('aria-valuenow', '40');
+    expect(bar.firstChild).toHaveClass('under');
+    expect(screen.queryByRole('progressbar', { name: 'Rent budget used' })).not.toBeInTheDocument();
+  });
+
+  it('flags an overspent category and caps the bar at 100%', async () => {
+    reportsApi.summary.mockResolvedValue({ spendingByCategory: [{ categoryId: 1, categoryName: 'Food', spent: 450 }] });
+    await renderPage();
+    const bar = screen.getByRole('progressbar', { name: 'Food budget used' });
+    expect(bar).toHaveAttribute('aria-valuenow', '100');
+    expect(bar.firstChild).toHaveClass('over');
+    expect(bar.firstChild).toHaveStyle({ width: '100%' });
+  });
+
+  it('colours each category with a dot', async () => {
+    await renderPage();
+    expect(screen.getByLabelText('Food budget').closest('li').querySelector('.dot')).not.toBeNull();
+  });
+
+  it('confirms a save with a toast', async () => {
+    render(
+      <ToastProvider>
+        <Budgets />
+      </ToastProvider>,
+    );
+    await screen.findByLabelText('Food budget');
+    await userEvent.type(screen.getByLabelText('Rent budget'), '900');
+    await userEvent.click(screen.getByLabelText('Rent budget').closest('li').querySelector('button.btn-secondary'));
+    expect(await screen.findByText('Rent budget saved')).toBeInTheDocument();
+  });
+
+  it('confirms a removal with a toast', async () => {
+    render(
+      <ToastProvider>
+        <Budgets />
+      </ToastProvider>,
+    );
+    await screen.findByLabelText('Food budget');
+    await userEvent.click(screen.getByLabelText('Food budget').closest('li').querySelector('button.btn-danger'));
+    expect(await screen.findByText('Food budget removed')).toBeInTheDocument();
+  });
+});
+
 describe('Budgets page', () => {
   it('lists expense categories only, with spending and any existing budget', async () => {
     await renderPage();
@@ -54,7 +117,7 @@ describe('Budgets page', () => {
   it('creates a budget for a category that has none', async () => {
     await renderPage();
     await userEvent.type(screen.getByLabelText('Rent budget'), '900');
-    const row = screen.getByLabelText('Rent budget').closest('tr');
+    const row = screen.getByLabelText('Rent budget').closest('li');
     await userEvent.click(row.querySelector('button.btn-secondary'));
     await waitFor(() => expect(budgetsApi.create).toHaveBeenCalled());
     expect(budgetsApi.create).toHaveBeenCalledWith({ categoryId: 3, month, amount: 900 });
@@ -66,7 +129,7 @@ describe('Budgets page', () => {
     const input = screen.getByLabelText('Food budget');
     await userEvent.clear(input);
     await userEvent.type(input, '350');
-    await userEvent.click(input.closest('tr').querySelector('button.btn-secondary'));
+    await userEvent.click(input.closest('li').querySelector('button.btn-secondary'));
     await waitFor(() => expect(budgetsApi.update).toHaveBeenCalledWith(10, 350));
     expect(budgetsApi.create).not.toHaveBeenCalled();
   });
@@ -74,7 +137,7 @@ describe('Budgets page', () => {
   it('only enables Save for a changed, positive amount', async () => {
     await renderPage();
     const input = screen.getByLabelText('Food budget');
-    const save = input.closest('tr').querySelector('button.btn-secondary');
+    const save = input.closest('li').querySelector('button.btn-secondary');
     expect(save).toBeDisabled();
     await userEvent.clear(input);
     await userEvent.type(input, '0');
@@ -86,10 +149,10 @@ describe('Budgets page', () => {
 
   it('removes a budget, and disables Remove where none exists', async () => {
     await renderPage();
-    const rentRow = screen.getByLabelText('Rent budget').closest('tr');
+    const rentRow = screen.getByLabelText('Rent budget').closest('li');
     expect(rentRow.querySelector('button.btn-danger')).toBeDisabled();
 
-    const foodRow = screen.getByLabelText('Food budget').closest('tr');
+    const foodRow = screen.getByLabelText('Food budget').closest('li');
     await userEvent.click(foodRow.querySelector('button.btn-danger'));
     await waitFor(() => expect(budgetsApi.remove).toHaveBeenCalledWith(10));
   });
@@ -98,7 +161,7 @@ describe('Budgets page', () => {
     budgetsApi.create.mockRejectedValue(new Error('Budgets can only be set for expense categories'));
     await renderPage();
     await userEvent.type(screen.getByLabelText('Rent budget'), '50');
-    await userEvent.click(screen.getByLabelText('Rent budget').closest('tr').querySelector('button.btn-secondary'));
+    await userEvent.click(screen.getByLabelText('Rent budget').closest('li').querySelector('button.btn-secondary'));
     expect(await screen.findByRole('alert')).toHaveTextContent('expense categories');
   });
 
