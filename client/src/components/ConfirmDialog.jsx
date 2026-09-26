@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Icon from './Icon.jsx';
 import Modal from './Modal.jsx';
 
 export default function ConfirmDialog({ title, message, confirmLabel = 'Delete', onConfirm, onCancel }) {
@@ -20,10 +21,16 @@ export default function ConfirmDialog({ title, message, confirmLabel = 'Delete',
     <Modal title={title} onClose={onCancel}>
       {error && (
         <div className="notice notice-error" role="alert">
-          {error}
+          <Icon name="alert" size={18} />
+          <span>{error}</span>
         </div>
       )}
-      <p className="confirm-message">{message}</p>
+      <div className="confirm-body">
+        <span className="tile tile-danger">
+          <Icon name="alert" />
+        </span>
+        <p className="confirm-message">{message}</p>
+      </div>
       <div className="form-actions">
         <button type="button" className="btn-secondary" onClick={onCancel}>
           Cancel

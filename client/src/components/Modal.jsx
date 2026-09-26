@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import Icon from './Icon.jsx';
 
 export default function Modal({ title, onClose, children }) {
   const ref = useRef(null);
@@ -29,8 +30,8 @@ export default function Modal({ title, onClose, children }) {
     >
       <div className="modal-head">
         <h2>{title}</h2>
-        <button type="button" className="btn-ghost" onClick={onClose} aria-label="Close">
-          ✕
+        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+          <Icon name="x" size={18} />
         </button>
       </div>
       {children}

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, http, query } from './client.js';
+import { ApiError, RETRY_DELAY, http, query } from './client.js';
 
 function mockFetch(response) {
   const fetchMock = vi.fn().mockResolvedValue(response);
@@ -73,5 +73,84 @@ describe('http', () => {
   it('explains when the server cannot be reached', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
     await expect(http.get('/x')).rejects.toMatchObject({ status: 0, message: expect.stringContaining('backend') });
+  });
+});
+
+describe('http retries', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function settle(promise) {
+    const outcome = promise.then((value) => ({ value }), (error) => ({ error }));
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY * 3);
+    return outcome;
+  }
+
+  it('retries a read once when the proxy reports a bad gateway', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json({ error: 'gateway' }, 502))
+      .mockResolvedValueOnce(json([{ id: 1 }]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { value } = await settle(http.get('/accounts'));
+    expect(value).toEqual([{ id: 1 }]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries a read once after a network failure', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(json({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { value } = await settle(http.get('/x'));
+    expect(value).toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up after a single retry and reports the failure', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue(json({ error: 'still down' }, 503));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { error } = await settle(http.get('/x'));
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.status).toBe(503);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports an unreachable server after both attempts fail', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { error } = await settle(http.get('/x'));
+    expect(error).toMatchObject({ status: 0 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('never retries writes, which could be applied twice', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json({ error: 'gateway' }, 502));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(http.post('/accounts', { name: 'A' })).rejects.toMatchObject({ status: 502 });
+    await expect(http.put('/accounts/1', { name: 'A' })).rejects.toMatchObject({ status: 502 });
+    await expect(http.delete('/accounts/1')).rejects.toMatchObject({ status: 502 });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not retry a network failure on a write', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(http.post('/accounts', {})).rejects.toMatchObject({ status: 0 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry ordinary client errors on a read', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json({ error: 'Account not found' }, 404));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(http.get('/accounts/9')).rejects.toMatchObject({ status: 404 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

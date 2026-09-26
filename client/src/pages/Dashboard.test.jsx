@@ -61,6 +61,34 @@ describe('Dashboard', () => {
     expect(screen.getByText('+Rs 1,176.75')).toBeInTheDocument();
   });
 
+  it('adds context under each headline number', async () => {
+    render(<Dashboard />);
+    await screen.findByText('Rs 3,450.00');
+    expect(screen.getByText('Money received')).toBeInTheDocument();
+    expect(screen.getByText('66% of income')).toBeInTheDocument();
+    expect(screen.getByText('Saved 34% of income')).toBeInTheDocument();
+  });
+
+  it('says so when spending exceeds income', async () => {
+    reportsApi.summary.mockResolvedValue({ ...summary, totalIncome: 100, totalExpenses: 300, net: -200 });
+    render(<Dashboard />);
+    expect(await screen.findByText('Spending exceeds income')).toBeInTheDocument();
+    expect(screen.getByText('300% of income')).toBeInTheDocument();
+  });
+
+  it('omits percentage captions when there is no income', async () => {
+    reportsApi.summary.mockResolvedValue({ ...summary, totalIncome: 0, totalExpenses: 50, net: -50 });
+    render(<Dashboard />);
+    await screen.findByText('Spending exceeds income');
+    expect(screen.queryByText(/of income/)).not.toBeInTheDocument();
+  });
+
+  it('subtitles the page with the selected month', async () => {
+    render(<Dashboard />);
+    await screen.findByText('Rs 3,450.00');
+    expect(screen.getByText(/^Overview for /)).toBeInTheDocument();
+  });
+
   it('shows every amount in rupees with no dollar signs', async () => {
     render(<Dashboard />);
     await screen.findByText('Rs 3,450.00');

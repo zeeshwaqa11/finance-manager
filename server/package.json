@@ -6,7 +6,7 @@
   "description": "Express + SQLite REST API for the Personal Finance Manager",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
+    "dev": "node --watch-path=./src src/index.js",
     "seed": "node src/db/seed.js",
     "reset": "node src/db/reset.js",
     "reset:empty": "node src/db/reset.js --empty",

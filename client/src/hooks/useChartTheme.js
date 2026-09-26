@@ -20,7 +20,12 @@ export function useChartTheme() {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const update = () => setTheme(readTheme());
     media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => {
+      media.removeEventListener('change', update);
+      observer.disconnect();
+    };
   }, []);
 
   return theme;

@@ -7,6 +7,7 @@ A full-stack personal finance app that runs entirely on your own machine: no clo
 - **Transactions**: add, edit and delete; filter by account, category, type and date range; sort by any column
 - **Budgets**: a monthly budget per category; categories without a budget are never flagged
 - **Dashboard**: income, expenses and net for any month, spending by category, budget progress (over/under), and a 6-month spending trend
+- **Polished UI**: light and dark themes with a toggle, account cards with a net-worth summary, toast confirmations, and a phone layout with a bottom tab bar
 
 ## Screenshots
 
@@ -16,7 +17,7 @@ Income, expenses and net for the selected month, spending by category, budget st
 
 ![Dashboard in dark mode](docs/screenshots/dashboard-dark.png)
 
-The same page in light mode. The theme follows your operating system.
+The same page in light mode. The theme follows your operating system until you use the sun and moon button in the header, and the choice is remembered.
 
 ![Dashboard in light mode](docs/screenshots/dashboard-light.png)
 
@@ -38,13 +39,17 @@ Filter by account, category, type and date range, and sort by any column.
 
 ### Mobile
 
-<img src="docs/screenshots/dashboard-mobile.png" alt="Dashboard on a phone" width="320">
+On phones the navigation becomes a bottom tab bar and each transaction becomes a compact card.
+
+| Dashboard | Transactions |
+| --- | --- |
+| <img src="docs/screenshots/dashboard-mobile.png" alt="Dashboard on a phone" width="300"> | <img src="docs/screenshots/transactions-mobile.png" alt="Transactions on a phone" width="300"> |
 
 ## Tech stack
 
 | Layer | Choice |
 | --- | --- |
-| Frontend | React 19, Vite, React Router, Chart.js via react-chartjs-2, plain CSS |
+| Frontend | React 19, Vite, React Router, Chart.js via react-chartjs-2, plain CSS with an inline SVG icon set |
 | Backend | Node.js, Express 5 (REST API) |
 | Database | SQLite through `better-sqlite3` (a single file, no server) |
 
@@ -109,7 +114,7 @@ This runs both suites; use `npm run test:server` or `npm run test:client` to run
 
 **Server (85 tests, Node's built-in test runner).** Unit tests for the money and date helpers, the request validators, the error handler, and the database layer (schema, constraints, seed data); plus API tests against an in-memory database covering balance updates, validation, filtering and sorting, budget rules, report calculations, and regressions for fixed bugs.
 
-**Client (111 tests, Vitest with Testing Library).** Unit tests for the formatters, API client, category color assignment and the `useApi` hook (including out-of-order responses), component tests for the forms, modal and month selector, and page tests for the Dashboard, Accounts, Transactions and Budgets pages with the API mocked.
+**Client (199 tests, Vitest with Testing Library).** Unit tests for the formatters, the API client (including read retries), category color assignment, the `useApi` and theme hooks (including out-of-order responses), component tests for the forms, modals, toasts, icons and month selector, tests for the app shell and routing, and page tests for the Dashboard, Accounts, Transactions and Budgets pages with the API mocked.
 
 ## Project structure
 
@@ -183,9 +188,13 @@ Amounts are in Pakistani rupees (PKR) in the API. Errors are always JSON: `{ "er
 
 **Reset works on a running server.** `npm run reset` drops and recreates the tables in place instead of deleting the file, because Windows will not delete a file another process has open. SQLite runs in WAL mode so the reset script can write while the server is connected.
 
-**Frontend.** State stays local to each page with a small `useApi` hook that tracks loading and error state and ignores responses from outdated requests. The Vite dev server proxies `/api`, so the client uses relative URLs and needs no CORS setup.
+**Frontend.** State stays local to each page with a small `useApi` hook that tracks loading and error state and ignores responses from outdated requests. The Vite dev server proxies `/api`, so the client uses relative URLs and needs no CORS setup. Reads are retried once on a gateway error or dropped connection (for example while the API restarts in development); writes are never retried, because they could be applied twice.
 
-**Accessible charts and colors.** Categories keep the same color everywhere (color follows the category, not its rank), from a colorblind-tested palette; past eight categories extras share a neutral gray. Budget status is shown with an icon and words as well as red and green, income and expense amounts carry a sign, and the charts have table alternatives (the legend and a "View as table" section). Light and dark themes follow the operating system.
+**Accessible charts and colors.** Categories keep the same color everywhere (color follows the category, not its rank), from a colorblind-tested palette; past eight categories extras share a neutral gray. Budget status is shown with an icon and words as well as red and green, income and expense amounts carry a sign, and the charts have table alternatives (the legend and a "View as table" section). Light and dark themes follow the operating system until the user picks one with the header toggle; the choice is stored in `localStorage` and applied before the first paint to avoid a flash. Charts read their colors from the same CSS variables and re-read them when the theme changes.
+
+**Responsive layout.** One stylesheet built on design tokens (colors, radii, shadows) serves every screen size. On phones the navigation moves to a fixed bottom tab bar, and the transactions table turns into compact cards using CSS grid, without duplicating markup. Icons are inline SVG, so there is no icon library and no network request. Motion respects the reduced-motion setting.
+
+**Feedback.** Saves and deletes confirm with a short toast, deletes go through an in-app dialog instead of the browser's `confirm()`, and errors appear inline with a retry option.
 
 ## Notes
 
